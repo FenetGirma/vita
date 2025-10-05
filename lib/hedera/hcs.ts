@@ -1,129 +1,90 @@
-// Hedera Consensus Service (HCS) Integration
-// Used for immutable logging of emergency alerts and responses
+// pages/api/demo-hcs.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+import {
+  Client,
+  AccountId,
+  PrivateKey,
+  TopicCreateTransaction,
+  TopicMessageSubmitTransaction,
+  TopicId,
+} from "@hashgraph/sdk";
 
-import { TopicCreateTransaction, TopicMessageSubmitTransaction, TopicId } from "@hashgraph/sdk"
-import { getHederaClient } from "./client"
+// Cached topic ID so we don’t recreate every time
+let cachedTopicId: string | null = null;
 
-export interface EmergencyAlert {
-  type: "SOS" | "ACCEPT" | "ARRIVE" | "COMPLETE"
-  patientId: string
-  responderId?: string
-  location: {
-    lat: number
-    lng: number
-    address: string
-  }
-  timestamp: number
-  metadata?: Record<string, unknown>
+// Create Hedera client
+function getHederaClient() {
+  const operatorId = process.env.HEDERA_OPERATOR_ID!;
+  const operatorKey = process.env.HEDERA_OPERATOR_KEY!;
+  const client = Client.forTestnet();
+  client.setOperator(AccountId.fromString(operatorId), PrivateKey.fromString(operatorKey));
+  return client;
 }
 
-let cachedTopicId: string | null = null
+// Create or return existing topic
+async function getOrCreateTopic(client: Client): Promise<string> {
+  if (cachedTopicId) return cachedTopicId;
 
-async function getOrCreateTopicId(): Promise<string> {
-  // Return cached topic if available
-  if (cachedTopicId) {
-    return cachedTopicId
-  }
+  const transaction = new TopicCreateTransaction().setTopicMemo("Vita Emergency Logs");
+  const txResponse = await transaction.execute(client);
+  const receipt = await txResponse.getReceipt(client);
+  const topicId = receipt.topicId!.toString();
+  cachedTopicId = topicId;
 
-  // Check environment variable
-  if (process.env.HEDERA_EMERGENCY_TOPIC_ID) {
-    cachedTopicId = process.env.HEDERA_EMERGENCY_TOPIC_ID
-    return cachedTopicId
-  }
-
-  // Auto-create topic if not exists
-  console.log("[v0] No topic ID found, creating new emergency topic...")
-  const client = getHederaClient()
-
-  const transaction = new TopicCreateTransaction().setSubmitKey(client.operatorPublicKey!)
-
-  const txResponse = await transaction.execute(client)
-  const receipt = await txResponse.getReceipt(client)
-
-  const topicId = receipt.topicId
-  if (!topicId) {
-    throw new Error("Failed to create topic")
-  }
-
-  cachedTopicId = topicId.toString()
-  console.log(`[v0] ✅ Created emergency topic: ${cachedTopicId}`)
-  console.log(`[v0] 📋 Add this to your environment variables: HEDERA_EMERGENCY_TOPIC_ID=${cachedTopicId}`)
-
-  return cachedTopicId
+  console.log("✅ Created Topic ID:", topicId);
+  return topicId;
 }
 
-// Submit an emergency alert to HCS
-export async function submitEmergencyAlert(alert: EmergencyAlert): Promise<string> {
-  const topicId = await getOrCreateTopicId()
-  const client = getHederaClient()
-
-  const message = JSON.stringify(alert)
-
-  const transaction = new TopicMessageSubmitTransaction({
+// Submit a message to HCS
+async function submitToHCS(client: Client, topicId: string, message: Record<string, any>) {
+  const tx = new TopicMessageSubmitTransaction({
     topicId: TopicId.fromString(topicId),
-    message: message,
-  })
+    message: JSON.stringify(message),
+  });
 
-  const txResponse = await transaction.execute(client)
-  const receipt = await txResponse.getReceipt(client)
-
-  console.log(`[v0] Submitted alert to HCS: ${receipt.status.toString()}`)
-  return receipt.status.toString()
+  const txResponse = await tx.execute(client);
+  const receipt = await txResponse.getReceipt(client);
+  return receipt.status.toString();
 }
 
-// POST /api/emergency/sos
-export async function logSOSAlert(patientId: string, location: EmergencyAlert["location"]) {
-  const alert: EmergencyAlert = {
-    type: "SOS",
-    patientId,
-    location,
-    timestamp: Date.now(),
+// Next.js API route
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    const client = getHederaClient();
+    const topicId = await getOrCreateTopic(client);
+
+    // Dummy SOS alert
+    const dummySOS = {
+      alertId: "ALERT_001",
+      type: "SOS",
+      patientId: "PATIENT_123",
+      responderId: null,
+      location: { lat: 9.03, lng: 38.74, address: "Addis Ababa" },
+      timestamp: Date.now(),
+    };
+
+    const sosStatus = await submitToHCS(client, topicId, dummySOS);
+
+    // Dummy ACCEPT alert
+    const dummyAccept = {
+      alertId: "ALERT_001",
+      type: "ACCEPT",
+      patientId: "PATIENT_123",
+      responderId: "RESPONDER_456",
+      location: { lat: 9.05, lng: 38.75, address: "En route" },
+      timestamp: Date.now(),
+    };
+
+    const acceptStatus = await submitToHCS(client, topicId, dummyAccept);
+
+    res.status(200).json({
+      topicId,
+      sosStatus,
+      acceptStatus,
+      message: "✅ Dummy SOS + ACCEPT submitted to HCS successfully!",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to submit to HCS", details: error });
   }
-
-  return await submitEmergencyAlert(alert)
-}
-
-// POST /api/emergency/accept
-export async function logAcceptAlert(patientId: string, responderId: string) {
-  const alert: EmergencyAlert = {
-    type: "ACCEPT",
-    patientId,
-    responderId,
-    location: { lat: 0, lng: 0, address: "" },
-    timestamp: Date.now(),
-  }
-
-  return await submitEmergencyAlert(alert)
-}
-
-// POST /api/emergency/arrive
-export async function logArriveAlert(patientId: string, responderId: string) {
-  const alert: EmergencyAlert = {
-    type: "ARRIVE",
-    patientId,
-    responderId,
-    location: { lat: 0, lng: 0, address: "" },
-    timestamp: Date.now(),
-  }
-
-  return await submitEmergencyAlert(alert)
-}
-
-export async function submitToHCS(data: Record<string, unknown>): Promise<number> {
-  const topicId = await getOrCreateTopicId()
-  const client = getHederaClient()
-
-  const message = JSON.stringify(data)
-
-  const transaction = new TopicMessageSubmitTransaction({
-    topicId: TopicId.fromString(topicId),
-    message: message,
-  })
-
-  const txResponse = await transaction.execute(client)
-  const receipt = await txResponse.getReceipt(client)
-
-  console.log(`[v0] Submitted to HCS: ${receipt.status.toString()}`)
-
-  return Date.now()
 }
