@@ -1,46 +1,64 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { AlertCircle, MapPin, Phone, User, Clock, CheckCircle, Loader2 } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertCircle,
+  MapPin,
+  Phone,
+  User,
+  Clock,
+  CheckCircle,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 export default function PatientDashboard() {
-  const [sosActive, setSosActive] = useState(false)
-  const [sosTimer, setSosTimer] = useState(0)
-  const [location, setLocation] = useState<{ lat: number; lng: number; address: string } | null>(null)
-  const [locationLoading, setLocationLoading] = useState(false)
-  const [locationError, setLocationError] = useState<string | null>(null)
+  const { data: session } = useSession({
+    required: false,
+  });
+  const [sosActive, setSosActive] = useState(false);
+  const [sosTimer, setSosTimer] = useState(0);
+  const [location, setLocation] = useState<{
+    lat: number;
+    lng: number;
+    address: string;
+  } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
-      setLocationLoading(true)
+      setLocationLoading(true);
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const { latitude, longitude } = position.coords
+          const { latitude, longitude } = position.coords;
           setLocation({
             lat: latitude,
             lng: longitude,
             address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-          })
-          setLocationLoading(false)
+          });
+          setLocationLoading(false);
         },
         (error) => {
-          console.error("[v0] Geolocation error:", error)
-          setLocationError("Unable to get location. Please enable location services.")
-          setLocationLoading(false)
-        },
-      )
+          console.error("[v0] Geolocation error:", error);
+          setLocationError(
+            "Unable to get location. Please enable location services."
+          );
+          setLocationLoading(false);
+        }
+      );
     } else {
-      setLocationError("Geolocation not supported by your browser")
+      setLocationError("Geolocation not supported by your browser");
     }
-  }, [])
+  }, []);
 
   const handleSOS = async () => {
     if (!sosActive && location) {
-      setSosActive(true)
+      setSosActive(true);
 
       try {
         const response = await fetch("/api/emergency/sos", {
@@ -56,27 +74,27 @@ export default function PatientDashboard() {
             },
             timestamp: new Date().toISOString(),
           }),
-        })
+        });
 
-        const data = await response.json()
-        console.log("[v0] SOS Alert sent to HCS:", data)
+        const data = await response.json();
+        console.log("[v0] SOS Alert sent to HCS:", data);
       } catch (error) {
-        console.error("[v0] Failed to send SOS:", error)
+        console.error("[v0] Failed to send SOS:", error);
       }
 
       // Simulate timer
       const interval = setInterval(() => {
-        setSosTimer((prev) => prev + 1)
-      }, 1000)
-      setTimeout(() => clearInterval(interval), 60000)
+        setSosTimer((prev) => prev + 1);
+      }, 1000);
+      setTimeout(() => clearInterval(interval), 60000);
     }
-  }
+  };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,6 +109,11 @@ export default function PatientDashboard() {
               <p className="text-sm font-medium">John Doe</p>
               <p className="text-xs text-muted-foreground">Patient</p>
             </div>
+          </div>
+          <div>
+            <h1>Member Client Session</h1>
+            <div>{session?.user?.email}</div>
+            {/* <div>{session?.user?.role}</div> */}
           </div>
           <Link href="/">
             <Button variant="ghost" size="sm">
@@ -126,8 +149,8 @@ export default function PatientDashboard() {
               <div className="space-y-3">
                 <h1 className="text-3xl font-bold">Emergency Assistance</h1>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Press the button below to send an immediate SOS alert to nearby certified responders with your
-                  real-time location.
+                  Press the button below to send an immediate SOS alert to
+                  nearby certified responders with your real-time location.
                 </p>
               </div>
 
@@ -138,12 +161,16 @@ export default function PatientDashboard() {
               >
                 <div className="text-center">
                   <AlertCircle className="h-20 w-20 text-primary-foreground mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <span className="text-2xl font-bold text-primary-foreground">SOS</span>
+                  <span className="text-2xl font-bold text-primary-foreground">
+                    SOS
+                  </span>
                 </div>
               </button>
 
               <p className="text-xs text-muted-foreground">
-                {location ? "Your location will be shared with responders" : "Waiting for location..."}
+                {location
+                  ? "Your location will be shared with responders"
+                  : "Waiting for location..."}
               </p>
             </Card>
           ) : (
@@ -155,11 +182,15 @@ export default function PatientDashboard() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold">SOS Alert Active</h2>
-                    <p className="text-sm text-muted-foreground">Alert sent to Hedera network...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Alert sent to Hedera network...
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-mono font-bold">{formatTime(sosTimer)}</div>
+                  <div className="text-2xl font-mono font-bold">
+                    {formatTime(sosTimer)}
+                  </div>
                   <p className="text-xs text-muted-foreground">Elapsed time</p>
                 </div>
               </div>
@@ -169,7 +200,9 @@ export default function PatientDashboard() {
                   <MapPin className="h-5 w-5 text-primary" />
                   <div className="flex-1">
                     <p className="text-sm font-medium">Location Shared</p>
-                    <p className="text-xs text-muted-foreground">{location?.address}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {location?.address}
+                    </p>
                   </div>
                   <CheckCircle className="h-5 w-5 text-secondary" />
                 </div>
@@ -178,13 +211,19 @@ export default function PatientDashboard() {
                   <Clock className="h-5 w-5 text-primary" />
                   <div className="flex-1">
                     <p className="text-sm font-medium">Alert Broadcasted</p>
-                    <p className="text-xs text-muted-foreground">Logged on Hedera Consensus Service</p>
+                    <p className="text-xs text-muted-foreground">
+                      Logged on Hedera Consensus Service
+                    </p>
                   </div>
                   <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                 </div>
               </div>
 
-              <Button variant="outline" className="w-full bg-background" onClick={() => setSosActive(false)}>
+              <Button
+                variant="outline"
+                className="w-full bg-background"
+                onClick={() => setSosActive(false)}
+              >
                 Cancel Alert
               </Button>
             </Card>
@@ -199,7 +238,9 @@ export default function PatientDashboard() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold">My Location</h3>
-                <p className="text-sm text-muted-foreground">{location ? "Location active" : "Getting location..."}</p>
+                <p className="text-sm text-muted-foreground">
+                  {location ? "Location active" : "Getting location..."}
+                </p>
               </div>
             </div>
           </Card>
@@ -211,7 +252,9 @@ export default function PatientDashboard() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold">Emergency Contacts</h3>
-                <p className="text-sm text-muted-foreground">Manage your contact list</p>
+                <p className="text-sm text-muted-foreground">
+                  Manage your contact list
+                </p>
               </div>
             </div>
           </Card>
@@ -243,7 +286,9 @@ export default function PatientDashboard() {
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Current Medications</p>
+              <p className="text-sm text-muted-foreground">
+                Current Medications
+              </p>
               <div className="flex gap-2">
                 <Badge variant="outline">Lisinopril</Badge>
               </div>
@@ -251,12 +296,16 @@ export default function PatientDashboard() {
           </div>
 
           <div className="pt-4 border-t border-border">
-            <p className="text-sm text-muted-foreground mb-2">Emergency Contacts</p>
+            <p className="text-sm text-muted-foreground mb-2">
+              Emergency Contacts
+            </p>
             <div className="space-y-2">
               <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
                 <div>
                   <p className="text-sm font-medium">Jane Doe (Spouse)</p>
-                  <p className="text-xs text-muted-foreground">+1 (555) 123-4567</p>
+                  <p className="text-xs text-muted-foreground">
+                    +1 (555) 123-4567
+                  </p>
                 </div>
                 <Phone className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -265,5 +314,5 @@ export default function PatientDashboard() {
         </Card>
       </main>
     </div>
-  )
+  );
 }

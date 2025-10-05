@@ -1,9 +1,15 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Activity, Shield, Users } from "lucide-react"
+"use client";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Activity, Shield, Users } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 export default function HomePage() {
+  const { data: session } = useSession({
+    required: false,
+  });
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -13,10 +19,22 @@ export default function HomePage() {
             <Activity className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">Vita</span>
           </div>
+          <div>
+            <h1>Member Client Session</h1>
+            <div>{session?.user?.email}</div>
+            {/* <div>{session?.user?.role}</div> */}
+          </div>
+
           <nav className="flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="ghost">Log in</Button>
-            </Link>
+            {session ? (
+              <Link href="/api/auth/signout?callbackUrl=/">
+                <Button variant="ghost">Log out</Button>
+              </Link>
+            ) : (
+              <Link href="/login">
+                <Button variant="ghost">Log in</Button>
+              </Link>
+            )}
             <Link href="/signup">
               <Button>Get Started</Button>
             </Link>
@@ -37,8 +55,8 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto text-pretty">
-              Connect patients with nearby responders instantly. Transparent and secure emergency care powered by
-              blockchain technology.
+              Connect patients with nearby responders instantly. Transparent and
+              secure emergency care powered by blockchain technology.
             </p>
 
             <div className="flex items-center justify-center gap-4 pt-4">
@@ -48,7 +66,11 @@ export default function HomePage() {
                 </Button>
               </Link>
               <Link href="/responder">
-                <Button size="lg" variant="outline" className="h-12 px-8 bg-transparent">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-12 px-8 bg-transparent"
+                >
                   I'm a Responder
                 </Button>
               </Link>
@@ -65,7 +87,8 @@ export default function HomePage() {
               </div>
               <h3 className="text-2xl font-bold">For Patients</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Send instant SOS alerts with your location. Get help from nearby certified responders in seconds.
+                Send instant SOS alerts with your location. Get help from nearby
+                certified responders in seconds.
               </p>
             </Card>
 
@@ -75,7 +98,8 @@ export default function HomePage() {
               </div>
               <h3 className="text-2xl font-bold">For Responders</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Accept nearby emergencies, navigate to patients, and save lives. Build your reputation on-chain.
+                Accept nearby emergencies, navigate to patients, and save lives.
+                Build your reputation on-chain.
               </p>
             </Card>
 
@@ -85,8 +109,8 @@ export default function HomePage() {
               </div>
               <h3 className="text-2xl font-bold">For Admins</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Monitor system-wide activity, track response times, and ensure quality care with transparent blockchain
-                records.
+                Monitor system-wide activity, track response times, and ensure
+                quality care with transparent blockchain records.
               </p>
             </Card>
           </div>
@@ -95,10 +119,12 @@ export default function HomePage() {
         {/* Trust Section */}
         <section className="container mx-auto px-4 py-24 border-t border-border">
           <div className="max-w-3xl mx-auto text-center space-y-6">
-            <h2 className="text-3xl md:text-4xl font-bold">Built on Trust & Transparency</h2>
+            <h2 className="text-3xl md:text-4xl font-bold">
+              Built on Trust & Transparency
+            </h2>
             <p className="text-lg text-muted-foreground text-pretty">
-              Every emergency alert and response is recorded immutably on Hedera's Consensus Service. Your data, your
-              control.
+              Every emergency alert and response is recorded immutably on
+              Hedera's Consensus Service. Your data, your control.
             </p>
             <div className="flex items-center justify-center gap-8 pt-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -125,5 +151,5 @@ export default function HomePage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
